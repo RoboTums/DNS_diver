@@ -1,5 +1,5 @@
 # DNS_diver
-
+A collection of scripts figure out which CDN provider works for whichever website. 
 ## Usage:
 usage: query_dns.py [-h] [--url URL] [--output_file OUTPUT_FILE]
 
