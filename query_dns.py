@@ -56,15 +56,16 @@ if __name__ == '__main__':
     dns_server_table = get_public_dns_servers()
     parser = argparse.ArgumentParser(description='Checks ~300 DNS servers to find the CDN provider for a specified URL endpoint.')
     parser.add_argument('--url', type=str, default="images-na.ssl-images-amazon.com", help="enter a url that needs a CDN to be served")
-    parser.add_argument('--output_file', type=str, default="cdn_output.csv", help="string that ends in .csv for the output data.")
+    parser.add_argument('--output_file', type=str, default="us_aws_cdn.csv", help="string that ends in .csv for the output data.")
     args = parser.parse_args()
     today = date.today().strftime("%m/%d/%Y")
     cdn_providers = {}
-
-    for ip_address in tqdm(dns_server_table['IP Address'][:10]):
+    ip_data = {}
+    for ip_address in tqdm(dns_server_table['IP Address']):
         cmd = f"dig @{ip_address.split()[0]} {args.url}"
         #print(cmd)
-        proc=subprocess.Popen(shlex.split(cmd),stdout=subprocess.PIPE)
+        proc=subprocess.Popen(shlex.split(cmd),stdout=subprocess.PIPE,
+    stderr=subprocess.DEVNULL)
         out,err=proc.communicate()
         string_output = out.decode('utf-8')
         string_output_split = string_output.split('ANSWER SECTION')
@@ -78,11 +79,17 @@ if __name__ == '__main__':
                 current_series = dns_server_table[dns_server_table["IP Address"] == ip_address]
                 cdn_providers[filtered_str] = {
                     'usage':1,
-                    'ip':ip_address,
-                    'location':current_series['Location'].iloc[0].split('\n')[0],
-                    'reliability':current_series['Reliability'].iloc[0].split('\n')[0],
-                    'date':today
+                    'date':today,
                      }
+                ip_data[ip_address]={
+                        'location':current_series['Location'].iloc[0].split('\n')[0],
+                        'reliability':current_series['Reliability'].iloc[0].split('\n')[0],
+                        'CDN':filtered_str,
+                        'date':today
+                        }
+                
 
     cdn_provider_DF = pd.DataFrame(cdn_providers)
-    cdn_provider_DF.to_csv(args.output_file)
+    cdn_provider_DF.to_csv(date.today().strftime("%m_%d_%Y")+"_"+args.output_file)
+    ip_data = pd.DataFrame(ip_data)
+    ip_data.to_csv(date.today().strftime("%m_%d_%Y")+"_"+args.output_file.split('.')[0] + '_vebose.csv')
