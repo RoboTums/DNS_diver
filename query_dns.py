@@ -1,4 +1,5 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
+
 """
 usage: query_dns.py [-h] [--url URL] [--output_file OUTPUT_FILE]
 
