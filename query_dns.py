@@ -13,11 +13,14 @@ optional arguments:
 import requests 
 import subprocess
 import pandas as pd
+from datetime import date
 import shlex
 import re
 from collections import defaultdict
 from tqdm import tqdm
 import argparse
+
+
 def parse_IP(ip_str):
     #first check if IPv4 or IPv6:
    if ':' in ip_str:
@@ -55,10 +58,10 @@ if __name__ == '__main__':
     parser.add_argument('--url', type=str, default="images-na.ssl-images-amazon.com", help="enter a url that needs a CDN to be served")
     parser.add_argument('--output_file', type=str, default="cdn_output.csv", help="string that ends in .csv for the output data.")
     args = parser.parse_args()
-    
+    today = date.today().strftime("%m/%d/%Y")
     cdn_providers = {}
 
-    for ip_address in tqdm(dns_server_table['IP Address']):
+    for ip_address in tqdm(dns_server_table['IP Address'][:10]):
         cmd = f"dig @{ip_address.split()[0]} {args.url}"
         #print(cmd)
         proc=subprocess.Popen(shlex.split(cmd),stdout=subprocess.PIPE)
@@ -70,9 +73,16 @@ if __name__ == '__main__':
         if len(string_output_split) > 1:
             filtered_str = string_output_split[1].split('IN	A')[0].split('\n')[-1].split('\t')[0].split(' ')[0]
             if filtered_str in cdn_providers.keys():
-                cdn_providers[filtered_str] += 1
+                cdn_providers[filtered_str]['usage'] += 1
             else:
-                cdn_providers[filtered_str] = 1
+                current_series = dns_server_table[dns_server_table["IP Address"] == ip_address]
+                cdn_providers[filtered_str] = {
+                    'usage':1,
+                    'ip':ip_address,
+                    'location':current_series['Location'].iloc[0].split('\n')[0],
+                    'reliability':current_series['Reliability'].iloc[0].split('\n')[0],
+                    'date':today
+                     }
 
-    cdn_provider_DF = pd.DataFrame(cdn_providers,index=[1])
+    cdn_provider_DF = pd.DataFrame(cdn_providers)
     cdn_provider_DF.to_csv(args.output_file)
