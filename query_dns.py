@@ -74,9 +74,13 @@ if __name__ == '__main__':
     for ip_address in tqdm(dns_server_table['IP Address']):
         cmd = f"dig @{ip_address.split()[0]} {args.url}"
         #print(cmd)
-        proc=subprocess.Popen(shlex.split(cmd),stdout=subprocess.PIPE,
+        try:
+            proc=subprocess.Popen(shlex.split(cmd),stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL)
-        out,err=proc.communicate()
+            out,err=proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            out,err = proc.communicate()
         string_output = out.decode('utf-8')
         string_output_split = string_output.split('ANSWER SECTION')
 
