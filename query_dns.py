@@ -12,15 +12,15 @@ optional arguments:
                         string that ends in .csv for the output data.
 """
 import requests 
-import subprocess
 import pandas as pd
 from datetime import date
-import shlex
-import re
 from collections import defaultdict
-from tqdm import tqdm
 import argparse
-
+import multiprocessing
+import dns.resolver
+import ipwhois
+import functools
+import time
 
 def parse_IP(ip_str):
     #first check if IPv4 or IPv6:
@@ -55,7 +55,38 @@ def get_public_dns_servers(dns_server_website="https://dnschecker.org/public-dns
 def read_cache():
     return pd.read_csv('cache.csv',index_col=0)
 
+def query_dns(ip_address,url,dns_server_table,today):
+    
+    resolv = dns.resolver.Resolver()
+    resolv.nameservers = [ip_address]
+    try:
+
+        result = resolv.query(url,"A",lifetime=3,raise_on_no_answer=False)    
+        if len(result) > 0:
+            result_text = [x.to_text() for x in result][-1]
+            cdn = ipwhois.IPWhois(result_text).lookup_whois()['nets'][0]['description']
+        else:
+            cdn = None
+    except dns.exception.Timeout:
+        cdn = None
+    except dns.resolver.NoNameservers:
+        cdn = None
+    except ipwhois.IPDefinedError:
+        cdn = None
+    current_series = dns_server_table[dns_server_table["IP Address"] == ip_address]
+
+    return {
+                'ip_address':ip_address,
+                'location':current_series['Location'].iloc[0].split('\n')[0],
+                'reliability':current_series['Reliability'].iloc[0].split('\n')[0],
+                'CDN':cdn,
+                'date': today
+
+                }
+        
 if __name__ == '__main__':
+    tic = time.perf_counter()
+
     parser = argparse.ArgumentParser(description='Checks ~300 DNS servers to find the CDN provider for a specified URL endpoint.')
     parser.add_argument('--url', type=str, default="images-na.ssl-images-amazon.com", help="enter a url that needs a CDN to be served")
     parser.add_argument('--use_cache', type=int, default=1, help="1 or 0 that determines whether you use cache.csv")
@@ -67,43 +98,24 @@ if __name__ == '__main__':
         dns_server_table = read_cache()
     else:
         dns_server_table = get_public_dns_servers()
+    #multiprocessing alloc
+    proc_pool = multiprocessing.Pool(None)
 
     today = date.today().strftime("%m/%d/%Y")
-    cdn_providers = {}
-    ip_data = {}
-    for ip_address in tqdm(dns_server_table['IP Address']):
-        cmd = f"dig @{ip_address.split()[0]} {args.url}"
-        #print(cmd)
-        try:
-            proc=subprocess.Popen(shlex.split(cmd),stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL)
-            out,err=proc.communicate(timeout=5)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            out,err = proc.communicate()
-        string_output = out.decode('utf-8')
-        string_output_split = string_output.split('ANSWER SECTION')
-
-
-        if len(string_output_split) > 1:
-            filtered_str = string_output_split[1].split('IN	A')[0].split('\n')[-1].split('\t')[0].split(' ')[0]
-            if filtered_str in cdn_providers.keys():
-                cdn_providers[filtered_str]['usage'] += 1
-            else:
-                current_series = dns_server_table[dns_server_table["IP Address"] == ip_address]
-                cdn_providers[filtered_str] = {
-                    'usage':1,
-                    'date':today,
-                     }
-            ip_data[ip_address]={
-                    'location':current_series['Location'].iloc[0].split('\n')[0],
-                    'reliability':current_series['Reliability'].iloc[0].split('\n')[0],
-                    'CDN':filtered_str,
-                    'date':today
-                    }
+    ip_data = []
+    
+    f = functools.partial(query_dns,
+            url=args.url,
+            dns_server_table=dns_server_table,
+            today = date.today().strftime("%m/%d/%Y"))
+    #we curry the dns server table 
+    results = proc_pool.map(
+                    f,
+                    dns_server_table['IP Address']
+            )
+    
             
-
-    cdn_provider_DF = pd.DataFrame(cdn_providers)
-    cdn_provider_DF.to_csv(date.today().strftime("%m_%d_%Y")+"_"+args.output_file)
-    ip_data = pd.DataFrame(ip_data)
-    ip_data.to_csv(date.today().strftime("%m_%d_%Y")+"_"+args.output_file.split('.')[0] + '_vebose.csv')
+    ip_data = pd.DataFrame(results)
+    ip_data.to_csv(date.today().strftime("%m_%d_%Y")+"_"+args.output_file.split('.')[0] + '_verbose.csv')
+    toc = time.perf_counter()
+    print(f"Found CDN providers for {args.url} in {toc - tic:0.4f} seconds")
