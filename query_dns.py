@@ -21,6 +21,8 @@ import dns.resolver
 import ipwhois
 import functools
 import time
+import subprocess
+import shlex
 
 def parse_IP(ip_str):
     #first check if IPv4 or IPv6:
@@ -56,30 +58,28 @@ def read_cache():
     return pd.read_csv('cache.csv',index_col=0)
 
 def query_dns(ip_address,url,dns_server_table,today):
-    
-    resolv = dns.resolver.Resolver()
-    resolv.nameservers = [ip_address]
-    try:
+    cmd = f"dig @{ip_address} {args.url}"
+        #print(cmd)
+    proc=subprocess.Popen(shlex.split(cmd))
 
-        result = resolv.query(url,"A",lifetime=3,raise_on_no_answer=False)    
-        if len(result) > 0:
-            result_text = [x.to_text() for x in result][-1]
-            cdn = ipwhois.IPWhois(result_text).lookup_whois()['nets'][0]['description']
-        else:
-            cdn = None
-    except dns.exception.Timeout:
-        cdn = None
-    except dns.resolver.NoNameservers:
-        cdn = None
-    except ipwhois.IPDefinedError:
-        cdn = None
+
+    #call bash right here.
+    out,err=proc.communicate()
+    output = out.decode('utf-8')
+    raw_output = output.split('ANSWER SECTION')
+    if len(raw_output) > 1:
+        #answer is received.
+        ASN = raw_output[-1].split('IN\tA')[-1].split('\n')[0].split('\t')[-1]
+    else:
+        ASN = None
+    
     current_series = dns_server_table[dns_server_table["IP Address"] == ip_address]
 
     return {
                 'ip_address':ip_address,
                 'location':current_series['Location'].iloc[0].split('\n')[0],
                 'reliability':current_series['Reliability'].iloc[0].split('\n')[0],
-                'CDN':cdn,
+                'ASN':ASN,
                 'date': today
 
                 }
@@ -93,7 +93,6 @@ if __name__ == '__main__':
     parser.add_argument('--output_file', type=str, default="us_aws_cdn.csv", help="string that ends in .csv for the output data.")
     parser.add_argument("--company",type=str, default="AMZN", help="generally what company the url serves")
     args = parser.parse_args()
-
     if args.use_cache == 1:
         dns_server_table = read_cache()
     else:
@@ -103,11 +102,10 @@ if __name__ == '__main__':
 
     today = date.today().strftime("%m/%d/%Y")
     ip_data = []
-    
-    f = functools.partial(query_dns,
-            url=args.url,
-            dns_server_table=dns_server_table,
-            today = date.today().strftime("%m/%d/%Y"))
+    f = functools.partial(query_dns, url=args.url, dns_server_table=dns_server_table,
+            today = date.today().strftime("%m/%d/%Y") 
+            )
+
     #we curry the dns server table 
     results = proc_pool.map(
                     f,
@@ -115,7 +113,7 @@ if __name__ == '__main__':
             )
     
             
-    ip_data = pd.DataFrame(results)
-    ip_data.to_csv(date.today().strftime("%m_%d_%Y")+"_"+args.output_file.split('.')[0] + '_verbose.csv')
+    asn_data = pd.DataFrame(results)
+    asn_data.to_csv(date.today().strftime("%m_%d_%Y")+"_"+args.output_file.split('.')[0] + '_verbose_test.csv')
     toc = time.perf_counter()
     print(f"Found CDN providers for {args.url} in {toc - tic:0.4f} seconds")
