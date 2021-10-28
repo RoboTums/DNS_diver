@@ -2,17 +2,13 @@
 0,8.8.8.8,"Mountain View, California",100 %
 1,9.9.9.9,"Berkeley, California",100 %
 2,4.0.0.53,"Berkeley, California",100 %
-3,2001:4b8:3:201::902,"Berkeley, California",100 %
 4,64.233.207.16,"Aurora, Illinois",98 %
 5,199.85.126.10,"Aurora, Illinois",98 %
-6,2606:4700:4700::1111,"Aurora, Illinois",98 %
-7,2001:4860:4860::8844,"Aurora, Illinois",98 %
 8,149.112.112.112,"Aurora, Illinois",98 %
 9,209.244.0.3,"Aurora, Illinois",98 %
 10,8.26.56.26,"Aurora, Illinois",98 %
 11,64.6.65.6,"Aurora, Illinois",98 %
 12,162.243.19.47,"Aurora, Illinois",98 %
-13,2a0d:2a00:1::2,"Aurora, Illinois",98 %
 14,45.33.97.5,"Aurora, Illinois",98 %
 15,129.250.35.250,"Aurora, Illinois",98 %
 16,129.250.35.251,"Aurora, Illinois",98 %
@@ -37,10 +33,6 @@
 35,209.244.0.53,"Aurora, Illinois",98 %
 36,216.146.35.35,"Aurora, Illinois",98 %
 37,209.244.0.4,"Aurora, Illinois",98 %
-38,2620:74:1b::1:1,"Aurora, Illinois",98 %
-39,2620:0:ccd::2,"Aurora, Illinois",98 %
-40,2620:0:ccc::2,"Aurora, Illinois",98 %
-41,2001:470:20::2,"Aurora, Illinois",98 %
 42,66.28.0.61,"Aurora, Illinois",98 %
 43,4.2.2.2,"Aurora, Illinois",98 %
 44,4.2.2.6,"Aurora, Illinois",98 %
@@ -60,12 +52,7 @@
 58,149.112.112.13,"Aurora, Illinois",98 %
 59,12.127.16.67,"Aurora, Illinois",98 %
 60,12.127.17.71,"Aurora, Illinois",98 %
-61,2620:119:35::35,"Aurora, Illinois",98 %
-62,2620:119:53::53,"Aurora, Illinois",98 %
-63,2606:4700:4700::1001,"Aurora, Illinois",98 %
 64,141.154.0.68,"Aurora, Illinois",98 %
-65,2001:418:3ff::1:53,"Aurora, Illinois",98 %
-66,2001:418:3ff::53,"Aurora, Illinois",98 %
 67,12.127.17.72,"Aurora, Illinois",98 %
 68,151.196.0.37,"Aurora, Illinois",98 %
 69,151.196.0.38,"Aurora, Illinois",98 %
@@ -85,8 +72,6 @@
 83,166.102.165.13,"Aurora, Illinois",98 %
 84,166.102.165.32,"Aurora, Illinois",98 %
 85,192.133.129.2,"Aurora, Illinois",98 %
-86,2610:a1:1018::1,"Aurora, Illinois",98 %
-87,2610:a1:1019::1,"Aurora, Illinois",98 %
 88,205.171.2.25,"Aurora, Illinois",98 %
 89,205.214.45.10,"Aurora, Illinois",98 %
 90,209.51.161.14,"Aurora, Illinois",98 %
@@ -152,10 +137,7 @@
 150,64.80.255.240,"Aurora, Illinois",98 %
 151,64.80.255.251,"Aurora, Illinois",98 %
 152,45.67.219.208,"Aurora, Illinois",98 %
-153,2a04:bdc7:100:70::70,"Aurora, Illinois",98 %
 154,185.213.26.187,"Aurora, Illinois",98 %
-155,2001:418:8006::12,"Aurora, Illinois",98 %
-156,2620:fe::10,"Aurora, Illinois",98 %
 157,4.2.2.5,"Aurora, Illinois",98 %
 158,199.85.127.10,"Aurora, Illinois",98 %
 159,45.90.28.126,"Aurora, Illinois",98 %
@@ -199,15 +181,12 @@
 197,198.99.193.1,"Chattanooga, Tennessee",19 %
 198,192.195.100.3,"Chattanooga, Tennessee",19 %
 199,216.146.36.36,"Chattanooga, Tennessee",19 %
-200,2001:4b8:2:101::602,"Chattanooga, Tennessee",19 %
 201,8.26.56.10,"Chattanooga, Tennessee",19 %
 202,208.48.253.106,"Chattanooga, Tennessee",19 %
 203,149.112.112.10,"Chattanooga, Tennessee",19 %
 204,107.191.48.176,"Chattanooga, Tennessee",19 %
 205,8.8.4.4,"Chattanooga, Tennessee",19 %
 206,208.67.222.222,"Chattanooga, Tennessee",19 %
-207,2001:4860:4860::8888,"Chattanooga, Tennessee",19 %
-208,2620:fe::9,"Chattanooga, Tennessee",19 %
 209,142.77.2.101,"Chattanooga, Tennessee",19 %
 210,142.77.2.36,"Chattanooga, Tennessee",19 %
 211,142.77.2.85,"Chattanooga, Tennessee",19 %
@@ -218,7 +197,6 @@
 216,64.6.64.6,"Chattanooga, Tennessee",19 %
 217,74.82.42.42,"Chattanooga, Tennessee",19 %
 218,12.156.228.164,"Chattanooga, Tennessee",19 %
-219,2620:74:1c::2:2,"Chattanooga, Tennessee",19 %
 220,38.132.106.139,"Chattanooga, Tennessee",19 %
 221,63.171.232.38,"Chattanooga, Tennessee",19 %
 222,156.154.71.2,"Chattanooga, Tennessee",19 %
@@ -245,8 +223,6 @@
 243,206.51.143.55,"Chattanooga, Tennessee",19 %
 244,64.119.60.9,"Chattanooga, Tennessee",19 %
 245,72.52.104.74,"Chattanooga, Tennessee",19 %
-246,2001:4870:8000:3::100,"Chattanooga, Tennessee",19 %
-247,2001:4870:8000:3::5,"Chattanooga, Tennessee",19 %
 248,168.215.165.186,"Chattanooga, Tennessee",19 %
 249,208.74.69.5,"Chattanooga, Tennessee",19 %
 250,162.127.13.1,"Chattanooga, Tennessee",19 %
