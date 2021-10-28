@@ -53,12 +53,19 @@ def read_ASN_database():
             names="range_start range_end AS_number country_code AS_description".split(' '),
             delimiter='\t'
         )
+
 def get_public_dns_servers(dns_server_website="https://dnschecker.org/public-dns/us"):
     resp = requests.get(dns_server_website)
     dns_server_table = pd.read_html(resp.text)[0]
     #clean DNS_Server_table. Just some regex lamdba on an IP address, amazon interview question
     dns_server_table['IP Address'] = dns_server_table['IP Address'].apply(lambda x: parse_IP(x))
     return dns_server_table
+
+def convert_ipv4(ip):
+    return tuple(int(n) for n in ip.split('.'))
+def check_ipv4_in(addr, start, end):
+    return convert_ipv4(start) < convert_ipv4(addr) < convert_ipv4(end)
+
 def read_cache():
     return pd.read_csv('cache.csv',index_col=0)
 
@@ -87,7 +94,13 @@ if __name__ == '__main__':
     parser.add_argument('--use_cache', type=int, default=1, help="1 or 0 that determines whether you use cache.csv")
     parser.add_argument('--output_file', type=str, default="us_aws_cdn.csv", help="string that ends in .csv for the output data.")
     parser.add_argument("--company",type=str, default="AMZN", help="generally what company the url serves")
+    parser.add_argument("--cores",type=int, default=6,help="number of CPU cores to use. Default is 6. -1 is all CPU cores. ")
     args = parser.parse_args()
+    #parse cores. 
+    if parser.cores == -1:
+        num_cores = multiprocessing.get_num_cores()
+    else:
+        num_cores = parser.cores
     #recover cached DNS
     if args.use_cache == 1:
         dns_server_table = read_cache()
@@ -109,10 +122,14 @@ if __name__ == '__main__':
             )
     
             
-    asn_data = pd.DataFrame(results)
+    ip_table = pd.DataFrame(results)
+    
+    #parse /tmp/ dig outputs parallelized-like, i.e
     
     asn_table = read_ASN_database()
-    asn_data.to_csv('debug.csv')
+
+
+    #asn_data.to_csv('debug.csv')
 
     #asn_data.to_csv(date.today().strftime("%m_%d_%Y")+"_"+args.output_file.split('.')[0] + '_verbose_test.csv')
     toc = time.perf_counter()
