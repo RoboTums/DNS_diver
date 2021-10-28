@@ -23,7 +23,25 @@ import time
 import subprocess
 import numpy as np
 import shlex
+import ast
+import pytricia
 
+#returns a Pytricia TreeBitMap to make IP searches hyper efficient. 
+def read_ASN_database():
+    tic = time.perf_counter()
+    print('Starting to construct TreeBitMap')
+    asn_csv = pd.read_csv('asn_db.csv', index_col=0)
+    pyt = pytricia.PyTricia()
+    for i in range(asn_csv.shape[0]):
+         for cidr in ast.literal_eval(asn_csv.iloc[i].cidr_block):
+             pyt[cidr] = asn_csv.iloc[i].AS_description
+    toc = time.perf_counter()
+    print(f" Constructed TreeBitMap in {toc - tic:0.4f} seconds")
+
+    return pyt
+
+#made this data structure global so it doenst need to get pickled by multiprocessing's Pool (it cant), which it implicity does to arguments.
+asn_table = read_ASN_database()
 
 def parse_IP(ip_str):
     # first check if IPv4 or IPv6:
@@ -49,14 +67,6 @@ def parse_IP(ip_str):
         split_list[-1] = acc
         return ".".join(split_list)
 
-
-def read_ASN_database():
-    return pd.read_csv(
-        'ip_asn_db.tsv',
-        names="range_start range_end AS_number country_code AS_description".split(
-            ' '),
-        delimiter='\t'
-    )
 
 
 def get_public_dns_servers(dns_server_website="https://dnschecker.org/public-dns/us"):
@@ -98,37 +108,36 @@ def query_dns(ip_address, url, dns_server_table, today):
     }
 
 
-def collect_CDNs(index_list, asn_table, ip_table, url):
+def collect_CDNs(index_list, ip_table, url):
     pruned_ip_table = ip_table.loc[index_list, :]
     output = []
     for ip_addr in pruned_ip_table.ip_address:
         with open(f"./tmp/result_{ip_addr}_{url}.txt", 'r') as f:
-            raw_output = f.read().split('ANSWER SECTION') #if theres no answer we skip. 
-            print(ip_addr)
+            # if theres no answer we skip.
+            raw_output = f.read().split('ANSWER SECTION')
+            #print(ip_addr)
             if len(raw_output) > 1:
                 #        #answer is received.
                 CDN_IP = raw_output[-1].split('IN\tA')[-1].split('\n')[
-                    0].split('\t')[-1] #get to the last Answer Addr
+                    0].split('\t')[-1]  # get to the last Answer Addr
 
                 if ':' in CDN_IP:  # if an ipv6, find a ipv6 one instead!
-                    for string in raw_output[-1].split('IN\tA'): #iterate thru the A
+                    # iterate thru the A
+                    for string in raw_output[-1].split('IN\tA'):
                         if ':' in string.split('\n')[0].split('\t')[-1]:
                             CDN_IP = None
-                        else: #try the last possible one past the ones we tried before
+                        else:  # try the last possible one past the ones we tried before
                             CDN_IP = string.split('\n')[0].split('\t')[-1]
-                            break#exit inner loop
+                            break  # exit inner loop
                 if CDN_IP == None:
-                    pass #failsafe against bottom loop null input
+                    pass  # failsafe against bottom loop null input
                 else:
-                    # This apply is the most expensive operation. Must be faster. 
-                    CDN = asn_table.loc[asn_table.apply(
-                        lambda x: check_ipv4_in(
-                            CDN_IP, x.range_start, x.range_end),
-                        axis=1
-                    )].AS_description
+                    # This apply is the most expensive operation. Must be faster.
+                    CDN = asn_table.get(asn_table.get_key(CDN_IP))
+                    
                     output.append(
                         {
-                            'CDN': CDN.values[0],
+                            'CDN': CDN,
                             'CDN_IP': CDN_IP,
                             'IP': ip_addr,
                         }
@@ -181,7 +190,6 @@ if __name__ == '__main__':
 
     # parse /tmp/ dig outputs parallelized-like, i.e
 
-    asn_table = read_ASN_database()
 
     jump_width = int(np.floor(ip_table.shape[0]/num_cores))
     index_map = [ip_table.index[(i*jump_width): (i+1)*jump_width] if i !=
@@ -192,7 +200,6 @@ if __name__ == '__main__':
     # another curry
     f = functools.partial(
         collect_CDNs,
-        asn_table=asn_table,
         ip_table=ip_table,
         url=args.url
     )
@@ -200,8 +207,8 @@ if __name__ == '__main__':
     with multiprocessing.Pool(processes=num_cores) as p:
         results = p.map(f, index_map)
 
-    pd.concat(results).to_csv(f'./output/CDN_results_{args.url.split(".")[0]}.csv')
-    
+    pd.concat(results).to_csv(f'./output/CDNResults_{date.today().strftime("%m-%d-%Y")}_{args.url.split(".")[0]}.csv')
+
     toc = time.perf_counter()
     print(f"Found CDN providers for {args.url} in {toc - tic:0.4f} seconds")
     proc = subprocess.Popen(shlex.split("./clean_tmp_cache.sh"))
