@@ -25,6 +25,7 @@ import numpy as np
 import shlex
 import ast
 import pytricia
+from tqdm import tqdm
 
 #returns a Pytricia TreeBitMap to make IP searches hyper efficient. 
 def read_ASN_database():
@@ -91,7 +92,7 @@ def read_cache():
 
 
 def query_dns(ip_address, url, dns_server_table, today):
-    cmd = f"./bash_query.sh {ip_address} {args.url}"
+    cmd = f"./bash_query.sh {ip_address} {url}"
     # print(cmd)
     proc = subprocess.Popen(shlex.split(cmd))
 
@@ -133,8 +134,11 @@ def collect_CDNs(index_list, ip_table, url):
                     pass  # failsafe against bottom loop null input
                 else:
                     # This apply is the most expensive operation. Must be faster.
-                    CDN = asn_table.get(asn_table.get_key(CDN_IP))
-                    
+                    try:
+                        CDN = asn_table.get(CDN_IP)
+                    except ValueError:
+                        CDN = None
+                        print(f"Error on CDN IP: {CDN_IP} @ {url}")
                     output.append(
                         {
                             'CDN': CDN,
@@ -147,7 +151,7 @@ def collect_CDNs(index_list, ip_table, url):
 
 if __name__ == '__main__':
     tic = time.perf_counter()
-    os.makedirs('tmp', exist_ok=True)
+    os.makedirs('./tmp/', exist_ok=True)
     parser = argparse.ArgumentParser(
         description='Checks ~300 DNS servers to find the CDN provider for a specified URL endpoint.')
     parser.add_argument('--url', type=str, default="images-na.ssl-images-amazon.com",
@@ -160,6 +164,7 @@ if __name__ == '__main__':
                         help="generally what company the url serves")
     parser.add_argument("--cores", type=int, default=10,
                         help="number of CPU cores to use. Default is 6. -1 is all CPU cores. ")
+    parser.add_argument('--top_companies',type=bool, default=False, help='if selected, overrides every other argument and queries top ~1300 companies by market cap. ')
     args = parser.parse_args()
     # parse cores.
     if args.cores == -1:
@@ -173,42 +178,84 @@ if __name__ == '__main__':
         dns_server_table = get_public_dns_servers()
     # multiprocessing alloc
     proc_pool = multiprocessing.Pool(None)
+    
+    if args.top_companies == True:
+        companies = pd.read_csv('dns_universe.csv',index_col=0)
+        today = date.today().strftime("%m/%d/%Y")
+        ip_data = []
+        for company_url in tqdm(companies['Co Web Address']):
+            company_url = str(company_url).split('/')[0]
+            if "www." not in company_url:
+                company_url = 'www.' + company_url
+            
+            os.makedirs('./tmp/', exist_ok=True)
 
-    today = date.today().strftime("%m/%d/%Y")
-    ip_data = []
-    f = functools.partial(query_dns, url=args.url, dns_server_table=dns_server_table,
-                          today=date.today().strftime("%m/%d/%Y")
-                          )
+            f = functools.partial(query_dns, url=company_url, dns_server_table=dns_server_table,
+                                today=date.today().strftime("%m/%d/%Y")
+                                )
+            results = proc_pool.map(
+                    f,
+                    dns_server_table['IP Address']
+               )
 
-    # we curry the dns server table
-    results = proc_pool.map(
-        f,
-        dns_server_table['IP Address']
-    )
+            ip_table = pd.DataFrame(results)
 
-    ip_table = pd.DataFrame(results)
+            jump_width = int(np.floor(ip_table.shape[0]/num_cores))
+            index_map = [ip_table.index[(i*jump_width): (i+1)*jump_width] if i !=
+                        num_cores else ip_table.index[(i*jump_width):] for i in range(num_cores)]
+            # another curry
+            f = functools.partial(
+                collect_CDNs,
+                ip_table=ip_table,
+                url=company_url
+            )
+
+            with multiprocessing.Pool(processes=num_cores) as p:
+                results = p.map(f, index_map)
+
+            pd.concat(results).to_csv(f'./output/CDNResults_{date.today().strftime("%m-%d-%Y")}_{company_url.split()[0]}.csv')
+    #proc = subprocess.Popen(shlex.split("./clean_tmp_cache.sh"))
 
     # parse /tmp/ dig outputs parallelized-like, i.e
 
+    else:
 
-    jump_width = int(np.floor(ip_table.shape[0]/num_cores))
-    index_map = [ip_table.index[(i*jump_width): (i+1)*jump_width] if i !=
-                 num_cores else ip_table.index[(i*jump_width):] for i in range(num_cores)]
 
-    #collect_CDNs(index_map[0], asn_table, ip_table, args.url)
+        today = date.today().strftime("%m/%d/%Y")
+        ip_data = []
+        f = functools.partial(query_dns, url=args.url, dns_server_table=dns_server_table,
+                            today=date.today().strftime("%m/%d/%Y")
+                            )
 
-    # another curry
-    f = functools.partial(
-        collect_CDNs,
-        ip_table=ip_table,
-        url=args.url
-    )
+        # we curry the dns server table
+        results = proc_pool.map(
+            f,
+            dns_server_table['IP Address']
+        )
 
-    with multiprocessing.Pool(processes=num_cores) as p:
-        results = p.map(f, index_map)
+        ip_table = pd.DataFrame(results)
 
-    pd.concat(results).to_csv(f'./output/CDNResults_{date.today().strftime("%m-%d-%Y")}_{args.url.split(".")[0]}.csv')
+        # parse /tmp/ dig outputs parallelized-like, i.e
 
-    toc = time.perf_counter()
-    print(f"Found CDN providers for {args.url} in {toc - tic:0.4f} seconds")
-    proc = subprocess.Popen(shlex.split("./clean_tmp_cache.sh"))
+
+        jump_width = int(np.floor(ip_table.shape[0]/num_cores))
+        index_map = [ip_table.index[(i*jump_width): (i+1)*jump_width] if i !=
+                    num_cores else ip_table.index[(i*jump_width):] for i in range(num_cores)]
+
+        #collect_CDNs(index_map[0], asn_table, ip_table, args.url)
+
+        # another curry
+        f = functools.partial(
+            collect_CDNs,
+            ip_table=ip_table,
+            url=args.url
+        )
+
+        with multiprocessing.Pool(processes=num_cores) as p:
+            results = p.map(f, index_map)
+
+        pd.concat(results).to_csv(f'./output/CDNResults_{date.today().strftime("%m-%d-%Y")}_{args.url.split(".")[0]}.csv')
+
+        toc = time.perf_counter()
+        print(f"Found CDN providers for {args.url} in {toc - tic:0.4f} seconds")
+        proc = subprocess.Popen(shlex.split("./clean_tmp_cache.sh"))
